@@ -1,0 +1,36 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Python environment
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Generated/local application data
+backend/data/uploads/
+backend/data/processed/
+
+# Vector database
+backend/chroma_db/
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
