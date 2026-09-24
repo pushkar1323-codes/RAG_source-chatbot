@@ -21,6 +21,9 @@ htmlcov/
 backend/data/uploads/
 backend/data/processed/
 
+# Local database
+backend/data/rag.db
+
 # Vector database
 backend/chroma_db/
 
@@ -34,5 +37,3 @@ backend/chroma_db/
 # OS
 .DS_Store
 Thumbs.db
-
-backend/data/uploads/

@@ -1,3 +1,5 @@
+from typing import Any
+
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 
@@ -11,7 +13,7 @@ def create_retriever(
     Create an MMR retriever with an optional source filter.
     """
 
-    search_kwargs = {
+    search_kwargs: dict[str, Any] = {
         "k": k,
         "fetch_k": 10,
     }

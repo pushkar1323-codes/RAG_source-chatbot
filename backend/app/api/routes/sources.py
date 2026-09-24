@@ -1,7 +1,7 @@
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import APIRouter, File, UploadFile
+from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from app.sources.source_manager import SourceManager
 from app.sources.source_service import SourceService
@@ -64,9 +64,10 @@ async def upload_source(
     file_type = SUPPORTED_FILE_TYPES.get(extension)
 
     if not file_type:
-        raise ValueError(
-            f"Unsupported file type: {extension}"
-        )
+        raise HTTPException(
+            status_code=415,
+            detail=f"Unsupported file type: {extension}",
+        )   
 
     UPLOAD_DIRECTORY.mkdir(
         parents=True,

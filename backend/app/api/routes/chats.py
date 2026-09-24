@@ -1,6 +1,11 @@
-from fastapi import APIRouter
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException
 
+from app.api.schemas import (
+    ChatResponse,
+    MessageRequest,
+    MessageResponse,
+    SourceResponse,
+)
 from app.chat.chat_manager import ChatManager
 from app.embeddings.embedding_service import create_embedding_model
 from app.rag.rag_service import RAGService
@@ -12,7 +17,10 @@ router = APIRouter(
 )
 
 
-@router.post("")
+@router.post(
+    "",
+    response_model=ChatResponse,
+)
 def create_chat(title: str):
     """
     Create a new chat.
@@ -24,33 +32,27 @@ def create_chat(title: str):
         title=title,
     )
 
-    return {
-        "id": chat.id,
-        "title": chat.title,
-        "created_at": chat.created_at,
-    }
+    return chat
 
 
-@router.get("")
+@router.get(
+    "",
+    response_model=list[ChatResponse],
+)
 def list_chats():
     """
     Return all chats.
     """
 
     chat_manager = ChatManager()
-    chats = chat_manager.list_chats()
 
-    return [
-        {
-            "id": chat.id,
-            "title": chat.title,
-            "created_at": chat.created_at,
-        }
-        for chat in chats
-    ]
+    return chat_manager.list_chats()
 
 
-@router.get("/{chat_id}")
+@router.get(
+    "/{chat_id}",
+    response_model=ChatResponse,
+)
 def get_chat(chat_id: str):
     """
     Return a chat by ID.
@@ -63,18 +65,17 @@ def get_chat(chat_id: str):
     )
 
     if not chat:
-        return {
-            "error": "Chat not found."
-        }
+        raise HTTPException(
+            status_code=404,
+            detail="Chat not found.",
+        )
 
-    return {
-        "id": chat.id,
-        "title": chat.title,
-        "created_at": chat.created_at,
-    }
+    return chat
 
 
-@router.post("/{chat_id}/sources/{source_id}")
+@router.post(
+    "/{chat_id}/sources/{source_id}",
+)
 def attach_source(
     chat_id: str,
     source_id: str,
@@ -85,10 +86,16 @@ def attach_source(
 
     chat_manager = ChatManager()
 
-    chat_manager.attach_source(
-        chat_id=chat_id,
-        source_id=source_id,
-    )
+    try:
+        chat_manager.attach_source(
+            chat_id=chat_id,
+            source_id=source_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=str(exc),
+        ) from exc
 
     return {
         "chat_id": chat_id,
@@ -97,7 +104,10 @@ def attach_source(
     }
 
 
-@router.get("/{chat_id}/sources")
+@router.get(
+    "/{chat_id}/sources",
+    response_model=list[SourceResponse],
+)
 def get_chat_sources(chat_id: str):
     """
     Return all sources attached to a chat.
@@ -105,54 +115,23 @@ def get_chat_sources(chat_id: str):
 
     chat_manager = ChatManager()
 
-    sources = chat_manager.get_chat_sources(
-        chat_id,
-    )
+    try:
+        sources = chat_manager.get_chat_sources(
+            chat_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=str(exc),
+        ) from exc
 
-    return [
-        {
-            "source_id": source.source_id,
-            "filename": source.filename,
-            "type": source.type,
-            "status": source.status,
-        }
-        for source in sources
-    ]
+    return sources
 
 
-@router.get("/{chat_id}/messages")
-def get_chat_messages(chat_id: str):
-    """
-    Return all messages belonging to a chat.
-    """
-
-    chat_manager = ChatManager()
-
-    messages = chat_manager.get_messages(
-        chat_id,
-    )
-
-    return [
-        {
-            "id": message.id,
-            "question": message.question,
-            "answer": message.answer,
-            "citations": message.citations,
-            "created_at": message.created_at,
-        }
-        for message in messages
-    ]
-
-
-class MessageRequest(BaseModel):
-    """
-    Request body for asking a question in a chat.
-    """
-
-    question: str
-
-
-@router.post("/{chat_id}/messages")
+@router.post(
+    "/{chat_id}/messages",
+    response_model=MessageResponse,
+)
 def create_message(
     chat_id: str,
     request: MessageRequest,
@@ -166,17 +145,19 @@ def create_message(
     chat = chat_manager.get_chat(chat_id)
 
     if not chat:
-        return {
-            "error": "Chat not found."
-        }
+        raise HTTPException(
+            status_code=404,
+            detail="Chat not found.",
+        )
 
     if not request.question.strip():
-        return {
-            "error": "Question cannot be empty."
-        }
+        raise HTTPException(
+            status_code=400,
+            detail="Question cannot be empty.",
+        )
 
     sources = chat_manager.get_chat_sources(
-        chat_id
+        chat_id,
     )
 
     source_ids = [
@@ -185,9 +166,10 @@ def create_message(
     ]
 
     if not source_ids:
-        return {
-            "error": "No sources are attached to this chat."
-        }
+        raise HTTPException(
+            status_code=400,
+            detail="No sources are attached to this chat.",
+        )
 
     embedding_model = create_embedding_model()
 
@@ -215,3 +197,37 @@ def create_message(
         "citations": message.citations,
         "created_at": message.created_at,
     }
+
+
+@router.get(
+    "/{chat_id}/messages",
+    response_model=list[MessageResponse],
+)
+def get_chat_messages(chat_id: str):
+    """
+    Return all messages belonging to a chat.
+    """
+
+    chat_manager = ChatManager()
+
+    try:
+        messages = chat_manager.get_messages(
+            chat_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=str(exc),
+        ) from exc
+
+    return [
+        {
+            "message_id": message.id,
+            "chat_id": message.chat_id,
+            "question": message.question,
+            "answer": message.answer,
+            "citations": message.citations,
+            "created_at": message.created_at,
+        }
+        for message in messages
+    ]
