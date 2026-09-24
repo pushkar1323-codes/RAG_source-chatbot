@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+from app.api.routes.chats import router as chats_router
 from app.api.routes.sources import router as sources_router
 
 
@@ -21,3 +22,4 @@ def health_check():
 
 
 app.include_router(sources_router)
+app.include_router(chats_router)
