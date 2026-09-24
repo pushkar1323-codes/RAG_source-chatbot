@@ -3,6 +3,7 @@ from app.generation.answer_generator import create_llm, generate_answer
 from app.retrieval.retriever import create_retriever, retrieve_documents
 from app.vectorstore.chroma_store import create_vector_store
 from app.retrieval.relevance import check_relevance
+from app.generation.citations import build_citations
 
 
 # Ask the user for a question
@@ -40,16 +41,19 @@ if not is_relevant:
     print("The answer was not found in the provided source.")
     raise SystemExit
 
-# 6. Build context from retrieved documents
+# 6. Build citations
+citations = build_citations(documents)
+
+# 7. Build context
 context = "\n\n".join(
     document.page_content
     for document in documents
 )
 
-# 7. Create Gemini generation model
+# 8. Create Gemini generation model
 llm = create_llm()
 
-# 8. Generate grounded answer
+# 9. Generate grounded answer
 answer = generate_answer(
     llm=llm,
     question=QUERY,
@@ -61,3 +65,10 @@ print(f"Documents retrieved: {len(documents)}")
 
 print("\n--- Generated Answer ---")
 print(answer)
+
+print("\n--- Sources ---")
+
+for citation in citations:
+    print(
+        f"{citation['source']} — Page {citation['page']}"
+    )
