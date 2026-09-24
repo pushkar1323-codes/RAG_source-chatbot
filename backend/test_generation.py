@@ -2,6 +2,7 @@ from app.embeddings.embedding_service import create_embedding_model
 from app.generation.answer_generator import create_llm, generate_answer
 from app.retrieval.retriever import create_retriever, retrieve_documents
 from app.vectorstore.chroma_store import create_vector_store
+from app.retrieval.relevance import check_relevance
 
 
 # Ask the user for a question
@@ -26,22 +27,34 @@ documents = retrieve_documents(
     QUERY,
 )
 
-# 5. Build context from retrieved documents
+# 5. Check retrieval relevance
+is_relevant = check_relevance(
+    query=QUERY,
+    documents=documents,
+)
+
+if not is_relevant:
+    print(f"\nQuestion: {QUERY}")
+    print(f"Documents retrieved: {len(documents)}")
+    print("\n--- Answer ---")
+    print("The answer was not found in the provided source.")
+    raise SystemExit
+
+# 6. Build context from retrieved documents
 context = "\n\n".join(
     document.page_content
     for document in documents
 )
 
-# 6. Create Gemini generation model
+# 7. Create Gemini generation model
 llm = create_llm()
 
-# 7. Generate grounded answer
+# 8. Generate grounded answer
 answer = generate_answer(
     llm=llm,
     question=QUERY,
     context=context,
 )
-
 
 print(f"\nQuestion: {QUERY}")
 print(f"Documents retrieved: {len(documents)}")
