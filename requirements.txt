@@ -6,3 +6,6 @@ langchain-google-genai
 langchain-chroma
 pytest
 SQLAlchemy==2.0.54
+fastapi
+uvicorn
+python-multipart
