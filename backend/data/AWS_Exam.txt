@@ -1,0 +1,6 @@
+Amazon EC2 stands for Elastic Compute Cloud.
+
+Amazon EC2 is an AWS service that provides virtual servers.
+It can be used to run applications in the cloud.
+
+EC2 instances can communicate with other AWS services.
