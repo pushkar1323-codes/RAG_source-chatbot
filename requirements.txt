@@ -5,3 +5,4 @@ pypdf
 langchain-google-genai
 langchain-chroma
 pytest
+SQLAlchemy==2.0.54
