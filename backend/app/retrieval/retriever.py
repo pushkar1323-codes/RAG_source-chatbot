@@ -5,17 +5,27 @@ from langchain_core.documents import Document
 def create_retriever(
     vector_store: Chroma,
     k: int = 4,
+    source_ids: list[str] | None = None,
 ):
     """
-    Create an MMR retriever from the Chroma vector store.
+    Create an MMR retriever with an optional source filter.
     """
+
+    search_kwargs = {
+        "k": k,
+        "fetch_k": 10,
+    }
+
+    if source_ids:
+        search_kwargs["filter"] = {
+            "source_id": {
+                "$in": source_ids,
+            }
+        }
 
     retriever = vector_store.as_retriever(
         search_type="mmr",
-        search_kwargs={
-            "k": k,
-            "fetch_k": 10,
-        },
+        search_kwargs=search_kwargs,
     )
 
     return retriever

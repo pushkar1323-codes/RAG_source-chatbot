@@ -3,7 +3,7 @@ from pathlib import Path
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
-
+from app.sources.source import Source, attach_source_metadata
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
@@ -40,3 +40,38 @@ def add_documents(
     document_ids = vector_store.add_documents(documents)
 
     return document_ids
+
+def test_source_metadata_propagation():
+    from langchain_core.documents import Document
+
+    source = Source(
+        source_id="test-source-1",
+        filename="AWS_Exam.pdf",
+        type="pdf",
+        path="data/AWS_Exam.pdf",
+    )
+
+    documents = [
+        Document(
+            page_content="Amazon EC2 provides virtual servers.",
+            metadata={
+                "page": 1,
+                "page_label": "2",
+            },
+        )
+    ]
+
+    documents = attach_source_metadata(
+        documents,
+        source,
+    )
+
+    metadata = documents[0].metadata
+
+    assert metadata["source_id"] == "test-source-1"
+    assert metadata["filename"] == "AWS_Exam.pdf"
+    assert metadata["file_type"] == "pdf"
+    assert metadata["source"] == "data/AWS_Exam.pdf"
+
+    assert metadata["page"] == 1
+    assert metadata["page_label"] == "2"
