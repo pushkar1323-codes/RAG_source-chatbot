@@ -19,17 +19,20 @@ import SettingsPage from '../pages/app/SettingsPage'
 import HelpPage from '../pages/app/HelpPage'
 import AppAboutPage from '../pages/app/AppAboutPage'
 
+import PublicLayout from '../layouts/PublicLayout'
+
 function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public routes */}
+        <Route element={<PublicLayout />}>
         <Route path="/" element={<LandingPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/getting-started" element={<GettingStartedPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        </Route>
 
         {/* Application routes */}
         <Route path="/app" element={<DashboardPage />} />

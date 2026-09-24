@@ -1,22 +1,38 @@
 @import "tailwindcss";
 
 :root {
-  --color-primary: #5b5fef;
-  --color-primary-hover: #4f53d9;
+  /* Context Bridge brand */
+  --color-primary: #0b2545;
+  --color-primary-hover: #13315c;
 
-  --color-text: #171a2b;
-  --color-text-muted: #687086;
+  --color-accent: #b89758;
+  --color-accent-hover: #a38345;
 
-  --color-background: #f8f9fc;
-  --color-surface: #eef0f8;
+  /* Surfaces */
+  --color-background: #faf8f5;
+  --color-surface: #f4efe6;
   --color-white: #ffffff;
+  --color-dark: #0b2545;
 
-  --color-border: #dde1ec;
+  /* Text */
+  --color-text: #1a202c;
+  --color-text-muted: #4a5568;
+  --color-subtle: #718096;
 
-  --color-dark: #20243a;
-  --color-subtle: #a8afc1;
-  --color-wash: #f4f5fa;
+  /* Borders */
+  --color-border: #e7e2d8;
+  --color-border-soft: #d9ceba;
 
+  /* Brand-specific */
+  --color-brand-navy: #0b2545;
+--color-brand-navy-light: #13315c;
+--color-brand-gold: #b89758;
+--color-brand-gold-dark: #a38345;
+--color-accent-dark: #7a5e24;
+--color-brand-cream: #fdfbf7;
+--color-brand-soft: #f4efe6;
+
+  /* Layout */
   --radius-card: 28px;
   --radius-inner: 18px;
   --radius-input: 8px;
