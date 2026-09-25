@@ -112,7 +112,7 @@ Embeddings────┘
                 │
           Gemini LLM
 ```
-
+---
 </div>
 
 ## RAG Pipeline
@@ -288,6 +288,20 @@ npm run build
 | Backend | Render, Railway, AWS |
 
 Configure environment variables and ensure the backend can securely access the database, vector store, and Gemini API.
+
+---
+
+<!-- <div align="center"> -->
+
+## Team Members
+
+| Name | Department |
+|:---:|:---:|
+| Pushkar Srivastava | AIML 3C |
+| Nishant Kumar | AIML 3C |
+| Mandavi Kumari | AIML 3C |
+
+</div>
 
 ---
 
