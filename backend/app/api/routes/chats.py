@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from langchain_google_genai.chat_models import GoogleRateLimitError
 
 from app.api.schemas import (
     ChatResponse,
@@ -257,10 +258,20 @@ def create_message(
         embedding_model=embedding_model,
     )
 
-    response = rag_service.ask(
-        question=request.question,
-        source_ids=source_ids,
-    )
+    try:
+        response = rag_service.ask(
+            question=request.question,
+            source_ids=source_ids,
+        )
+    except GoogleRateLimitError as exc:
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                "AI generation is temporarily unavailable because "
+                "the Gemini API quota has been exceeded. "
+                "Please try again later."
+            ),
+        ) from exc
 
     try:
         message = chat_manager.add_message(
