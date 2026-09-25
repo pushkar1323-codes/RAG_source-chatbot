@@ -1,4 +1,6 @@
-# Document RAG Chatbot
+<div align="center">
+
+# Context Bridge
 
 > A source-grounded AI chatbot that lets users upload documents, ask questions, and receive answers based only on the provided sources.
 
@@ -10,6 +12,8 @@
 [![Tests](https://img.shields.io/badge/Backend%20Tests-20%20passed-success)](#testing)
 
 **[Live Demo](YOUR_DEPLOYMENT_URL)** · **[API Docs](YOUR_API_DOCS_URL)**
+
+</div>
 
 ---
 
@@ -29,21 +33,65 @@ Document RAG Chatbot is a Retrieval-Augmented Generation (RAG) application that 
 
 ## Screenshots
 
-| Home | Document Chat |
-|---|---|
-| ![Home]<img width="1447" height="1078" alt="image" src="https://github.com/user-attachments/assets/d02141c0-0734-41b6-b647-ea9836801c06" />
- | ![Chat Interface]<img width="1462" height="1078" alt="image" src="https://github.com/user-attachments/assets/6cf9dd88-6fd3-47bb-803b-00c1cf161d00" />
- |
+<div align="center">
 
-| Conversation History | Source Library |
-|---|---|
-| ![Chat]<img width="1461" height="1078" alt="image" src="https://github.com/user-attachments/assets/8e13d06d-8beb-4de7-9d88-cb9d1b66c02c" />
- | ![Source]<img width="1326" height="1062" alt="image" src="https://github.com/user-attachments/assets/558bec48-82f9-422c-bf69-3c7b3433a7c4" />
- |
+<h3>Home</h3>
+
+<br>
+
+<img
+  width="1447"
+  height="1078"
+  alt="Home"
+  src="https://github.com/user-attachments/assets/d02141c0-0734-41b6-b647-ea9836801c06"
+/>
+
+<br><br><br>
+
+<h3>Chat Interface</h3>
+
+<br>
+
+<img
+  width="1462"
+  height="1078"
+  alt="Chat Interface"
+  src="https://github.com/user-attachments/assets/6cf9dd88-6fd3-47bb-803b-00c1cf161d00"
+/>
+
+<br><br><br>
+
+<h3>Conversation</h3>
+
+<br>
+
+<img
+  width="1461"
+  height="1078"
+  alt="Conversation History"
+  src="https://github.com/user-attachments/assets/8e13d06d-8beb-4de7-9d88-cb9d1b66c02c"
+/>
+
+<br><br><br>
+
+<h3>Source</h3>
+
+<br>
+
+<img
+  width="1326"
+  height="1062"
+  alt="Source"
+  src="https://github.com/user-attachments/assets/558bec48-82f9-422c-bf69-3c7b3433a7c4"
+/>
+
+</div>
 
 ---
 
 ## Architecture
+
+<div align="center">
 
 ```text
 React (TypeScript + Vite)
@@ -64,6 +112,8 @@ Embeddings────┘
                 │
           Gemini LLM
 ```
+
+</div>
 
 ## RAG Pipeline
 
@@ -241,4 +291,8 @@ Configure environment variables and ensure the backend can securely access the d
 
 ---
 
-<p align="center">Built with React, FastAPI, ChromaDB, and Gemini</p>
+<div align="center">
+
+<p>Built with React, FastAPI, ChromaDB, and Gemini</p>
+
+</div>
