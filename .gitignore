@@ -23,6 +23,7 @@ backend/data/processed/
 
 # Local database
 backend/data/rag.db
+backend/data/guest_uploads/
 
 # Vector database
 backend/chroma_db/
