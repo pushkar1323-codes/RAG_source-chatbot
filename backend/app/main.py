@@ -1,3 +1,6 @@
+import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -5,20 +8,34 @@ from app.api.routes.auth import router as auth_router
 from app.api.routes.chats import router as chats_router
 from app.api.routes.guest import router as guest_router
 from app.api.routes.sources import router as sources_router
+from app.database.database import init_database
 
 
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    init_database()
+    yield
+
+
+cors_allowed_origins = os.getenv(
+    "CORS_ALLOWED_ORIGINS",
+    "http://localhost:5173,http://127.0.0.1:5173",
+)
 
 app = FastAPI(
     title="RAG API",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
+        origin.strip()
+        for origin in cors_allowed_origins.split(",")
+        if origin.strip()
     ],
     allow_credentials=True,
     allow_methods=["*"],
