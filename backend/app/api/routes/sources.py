@@ -1,8 +1,16 @@
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    UploadFile,
+)
 
+from app.auth.dependencies import get_current_user
+from app.database.models import UserModel
 from app.sources.source_manager import SourceManager
 from app.sources.source_service import SourceService
 
@@ -26,13 +34,18 @@ router = APIRouter(
 
 
 @router.get("")
-def list_sources():
+def list_sources(
+    current_user: UserModel = Depends(get_current_user),
+):
     """
-    Return all registered sources.
+    Return all sources belonging to the authenticated user.
     """
 
     source_manager = SourceManager()
-    sources = source_manager.list_sources()
+
+    sources = source_manager.list_sources(
+        user_id=current_user.id,
+    )
 
     return [
         {
@@ -51,13 +64,18 @@ def list_sources():
 @router.post("")
 async def upload_source(
     file: UploadFile = File(...),
+    current_user: UserModel = Depends(get_current_user),
 ):
     """
-    Upload and process a supported source file.
+    Upload and process a supported source file for the
+    authenticated user.
     """
 
     if not file.filename:
-        raise ValueError("Filename is required.")
+        raise HTTPException(
+            status_code=400,
+            detail="Filename is required.",
+        )
 
     extension = Path(file.filename).suffix.lower()
 
@@ -67,7 +85,7 @@ async def upload_source(
         raise HTTPException(
             status_code=415,
             detail=f"Unsupported file type: {extension}",
-        )   
+        )
 
     UPLOAD_DIRECTORY.mkdir(
         parents=True,
@@ -88,7 +106,9 @@ async def upload_source(
 
     try:
         source = source_service.process_file(
-            upload_path
+            upload_path,
+            original_filename=file.filename,
+            user_id=current_user.id,
         )
     finally:
         if upload_path.exists():
@@ -102,4 +122,33 @@ async def upload_source(
         "url": source.url,
         "metadata": source.metadata,
         "status": source.status,
+    }
+
+
+@router.delete("/{source_id}")
+def delete_source(
+    source_id: str,
+    current_user: UserModel = Depends(get_current_user),
+):
+    """
+    Permanently delete a source belonging to the authenticated user.
+    """
+
+    source_service = SourceService()
+
+    source = source_service.delete_source(
+        source_id,
+        user_id=current_user.id,
+    )
+
+    if not source:
+        raise HTTPException(
+            status_code=404,
+            detail="Source not found.",
+        )
+
+    return {
+        "source_id": source.source_id,
+        "filename": source.filename,
+        "status": "deleted",
     }

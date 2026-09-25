@@ -7,6 +7,7 @@
 
   --color-accent: #b89758;
   --color-accent-hover: #a38345;
+  --color-accent-dark: #7a5e24;
 
   /* Surfaces */
   --color-background: #faf8f5;
@@ -25,18 +26,51 @@
 
   /* Brand-specific */
   --color-brand-navy: #0b2545;
---color-brand-navy-light: #13315c;
---color-brand-gold: #b89758;
---color-brand-gold-dark: #a38345;
---color-accent-dark: #7a5e24;
---color-brand-cream: #fdfbf7;
---color-brand-soft: #f4efe6;
+  --color-brand-navy-light: #13315c;
+  --color-brand-gold: #b89758;
+  --color-brand-gold-dark: #a38345;
+  --color-brand-cream: #fdfbf7;
+  --color-brand-soft: #f4efe6;
 
   /* Layout */
   --radius-card: 28px;
   --radius-inner: 18px;
   --radius-input: 8px;
   --radius-pill: 9999px;
+}
+
+/* Dark theme */
+html.dark {
+  /* Brand */
+  --color-primary: #e8edf4;
+  --color-primary-hover: #ffffff;
+
+  --color-accent: #d1b06a;
+  --color-accent-hover: #e0c27d;
+  --color-accent-dark: #d8b86d;
+
+  /* Surfaces */
+  --color-background: #101923;
+  --color-surface: #182330;
+  --color-white: #1d2936;
+  --color-dark: #f4f7fa;
+
+  /* Text */
+  --color-text: #edf2f7;
+  --color-text-muted: #b8c2cf;
+  --color-subtle: #8d9aaa;
+
+  /* Borders */
+  --color-border: #2b3948;
+  --color-border-soft: #3a4a5c;
+
+  /* Brand-specific */
+  --color-brand-navy: #e8edf4;
+  --color-brand-navy-light: #ffffff;
+  --color-brand-gold: #d1b06a;
+  --color-brand-gold-dark: #e0c27d;
+  --color-brand-cream: #101923;
+  --color-brand-soft: #182330;
 }
 
 html {
@@ -53,13 +87,23 @@ html {
   background: var(--color-background);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+
+  transition:
+    background-color 180ms ease,
+    color 180ms ease;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+
   background: var(--color-background);
+  color: var(--color-text);
+
+  transition:
+    background-color 180ms ease,
+    color 180ms ease;
 }
 
 button,
@@ -75,4 +119,13 @@ button {
 
 * {
   box-sizing: border-box;
+}
+
+/* Browser-level theme controls */
+html.dark {
+  color-scheme: dark;
+}
+
+html:not(.dark) {
+  color-scheme: light;
 }

@@ -52,3 +52,20 @@ def add_documents(
     )
 
     return document_ids
+
+
+def delete_source_documents(
+    vector_store: Chroma,
+    source_id: str,
+) -> None:
+    """
+    Delete all vector-store documents belonging to a source.
+    """
+
+    collection = vector_store._collection
+
+    collection.delete(
+        where={
+            "source_id": source_id,
+        }
+    )

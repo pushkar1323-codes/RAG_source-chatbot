@@ -1,130 +1,191 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, NavLink, Outlet } from 'react-router-dom'
 
 import BrandLogo from '../ui/BrandLogo'
 import Container from './Container'
+import PublicFooter from './PublicFooter'
 
 function AppShell() {
-  const mainNavigation = [
-    { label: 'Dashboard', to: '/app' },
-    { label: 'Chats', to: '/app/chats' },
-    { label: 'Sources', to: '/app/sources' },
-    { label: 'Study', to: '/app/study' },
-    { label: 'Insights', to: '/app/study/insights' },
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  const workspaceNavigation = [
+    {
+      label: 'Workspace',
+      to: '/',
+    },
+    {
+      label: 'Chats',
+      to: '/chats',
+    },
+    {
+      label: 'Sources',
+      to: '/sources',
+    },
   ]
 
-  const secondaryNavigation = [
-    { label: 'Getting Started', to: '/app/getting-started' },
-    { label: 'Help', to: '/app/help' },
-    { label: 'About', to: '/app/about' },
-  ]
+  function closeMenu() {
+    setMenuOpen(false)
+  }
 
-  const navLinkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+  const desktopNavClass = ({ isActive }: { isActive: boolean }) =>
+    [
+      'text-sm font-medium whitespace-nowrap transition-colors',
       isActive
-        ? 'bg-[var(--color-brand-soft)] text-[var(--color-primary)]'
-        : 'text-[var(--color-text-muted)] hover:bg-[var(--color-brand-soft)] hover:text-[var(--color-primary)]'
-    }`
+        ? 'text-[var(--color-primary)]'
+        : 'text-[var(--color-text-muted)] hover:text-[var(--color-primary)]',
+    ].join(' ')
+
+  const mobileNavClass = ({ isActive }: { isActive: boolean }) =>
+    [
+      'rounded-lg px-4 py-3 text-sm font-medium transition-colors',
+      isActive
+        ? 'bg-[var(--color-surface)] text-[var(--color-primary)]'
+        : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-primary)]',
+    ].join(' ')
 
   return (
-    <div className="min-h-screen bg-[var(--color-background)]">
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-[var(--color-border)] bg-[var(--color-brand-cream)] lg:flex lg:flex-col">
-        <div className="border-b border-[var(--color-border)] px-6 py-5">
-          <NavLink to="/app" aria-label="Context Bridge dashboard">
-            <BrandLogo size="sm" />
-          </NavLink>
-        </div>
+    <div className="min-h-screen bg-[var(--color-background)] text-[var(--color-text)]">
+      <header className="sticky top-0 z-50 border-b border-[var(--color-border)] bg-[var(--color-brand-cream)]/95 backdrop-blur">
+        <Container>
+          <nav className="relative flex min-h-[76px] items-center justify-between gap-6">
+            {/* Brand */}
+            <Link
+              to="/"
+              onClick={closeMenu}
+              className="shrink-0 transition-opacity hover:opacity-85"
+              aria-label="Context Bridge workspace"
+            >
+              <BrandLogo size="md" />
+            </Link>
 
-        <nav className="flex-1 overflow-y-auto px-4 py-6">
-          <div>
-            <p className="px-3 text-[11px] font-bold uppercase tracking-widest text-[var(--color-subtle)]">
-              Workspace
-            </p>
-
-            <div className="mt-3 space-y-1">
-              {mainNavigation.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.to === '/app'}
-                  className={navLinkClass}
-                >
-                  {item.label}
-                </NavLink>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-8">
-            <p className="px-3 text-[11px] font-bold uppercase tracking-widest text-[var(--color-subtle)]">
-              Support
-            </p>
-
-            <div className="mt-3 space-y-1">
-              {secondaryNavigation.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={navLinkClass}
-                >
-                  {item.label}
-                </NavLink>
-              ))}
-            </div>
-          </div>
-        </nav>
-
-        <div className="border-t border-[var(--color-border)] p-4">
-          <NavLink
-            to="/app/profile"
-            className="flex items-center gap-3 rounded-lg px-3 py-3 transition-colors hover:bg-[var(--color-brand-soft)]"
-          >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] font-serif text-sm font-bold text-white">
-              U
-            </div>
-
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-[var(--color-primary)]">
-                Your Profile
-              </p>
-              <p className="text-xs text-[var(--color-subtle)]">
-                Account settings
-              </p>
-            </div>
-          </NavLink>
-        </div>
-      </aside>
-
-      <div className="lg:pl-64">
-        <header className="sticky top-0 z-30 border-b border-[var(--color-border)] bg-[var(--color-brand-cream)]/95 backdrop-blur-md">
-          <Container>
-            <div className="flex min-h-16 items-center justify-between gap-4">
-              <div className="lg:hidden">
-                <NavLink to="/app" aria-label="Context Bridge dashboard">
-                  <BrandLogo size="sm" />
-                </NavLink>
-              </div>
-
-              <div className="hidden lg:block">
-                <p className="text-sm font-medium text-[var(--color-text-muted)]">
-                  Your workspace
-                </p>
-              </div>
+            {/* Desktop navigation */}
+            <div className="hidden items-center gap-5 xl:flex">
+              {/* Public */}
+              <NavLink
+                to="/about"
+                className={desktopNavClass}
+              >
+                About
+              </NavLink>
 
               <NavLink
-                to="/app/profile"
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-primary)] font-serif text-sm font-bold text-white transition-colors hover:bg-[var(--color-primary-hover)]"
-                aria-label="Profile"
+                to="/getting-started"
+                className={desktopNavClass}
               >
-                U
+                Getting Started
+              </NavLink>
+
+              <span className="mx-1 h-5 w-px bg-[var(--color-border)]" />
+
+              {/* Workspace */}
+              {workspaceNavigation.map((item) => (
+                <NavLink
+                  key={item.label}
+                  to={item.to}
+                  end={item.to === '/'}
+                  className={desktopNavClass}
+                >
+                  {item.label}
+                </NavLink>
+              ))}
+
+              <span className="mx-1 h-5 w-px bg-[var(--color-border)]" />
+
+              {/* Account */}
+              <NavLink
+                to="/profile"
+                className={desktopNavClass}
+              >
+                Profile
+              </NavLink>
+
+              <NavLink
+                to="/settings"
+                className={desktopNavClass}
+              >
+                Settings
               </NavLink>
             </div>
-          </Container>
-        </header>
 
-        <main>
-          <Outlet />
-        </main>
-      </div>
+            {/* Mobile menu button */}
+            <button
+              type="button"
+              aria-label="Toggle navigation"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((open) => !open)}
+              className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-primary)] xl:hidden"
+            >
+              <span className="text-lg leading-none">
+                {menuOpen ? '✕' : '☰'}
+              </span>
+            </button>
+
+            {/* Mobile navigation */}
+            {menuOpen && (
+              <div className="absolute left-0 right-0 top-[calc(100%+1px)] border-b border-[var(--color-border)] bg-[var(--color-background)] px-5 py-5 shadow-sm xl:hidden">
+                <div className="flex flex-col gap-1">
+                  {/* Public */}
+                  <NavLink
+                    to="/about"
+                    onClick={closeMenu}
+                    className={mobileNavClass}
+                  >
+                    About
+                  </NavLink>
+
+                  <NavLink
+                    to="/getting-started"
+                    onClick={closeMenu}
+                    className={mobileNavClass}
+                  >
+                    Getting Started
+                  </NavLink>
+
+                  <div className="my-2 h-px bg-[var(--color-border)]" />
+
+                  {/* Workspace */}
+                  {workspaceNavigation.map((item) => (
+                    <NavLink
+                      key={item.label}
+                      to={item.to}
+                      end={item.to === '/'}
+                      onClick={closeMenu}
+                      className={mobileNavClass}
+                    >
+                      {item.label}
+                    </NavLink>
+                  ))}
+
+                  <div className="my-2 h-px bg-[var(--color-border)]" />
+
+                  {/* Account */}
+                  <NavLink
+                    to="/profile"
+                    onClick={closeMenu}
+                    className={mobileNavClass}
+                  >
+                    Profile
+                  </NavLink>
+
+                  <NavLink
+                    to="/settings"
+                    onClick={closeMenu}
+                    className={mobileNavClass}
+                  >
+                    Settings
+                  </NavLink>
+                </div>
+              </div>
+            )}
+          </nav>
+        </Container>
+      </header>
+
+      <main>
+        <Outlet />
+      </main>
+
+      <PublicFooter />
     </div>
   )
 }

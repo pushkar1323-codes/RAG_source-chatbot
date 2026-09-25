@@ -262,7 +262,8 @@ def test_source_model():
     assert source.source_id == "test-source-1"
     assert source.filename == "AWS_Exam.pdf"
     assert source.type == "pdf"
-    assert source.path == "data/AWS_Exam.pdf"
+    assert source.path is not None
+    assert source.path.replace("\\", "/") == "data/AWS_Exam.pdf"
     assert source.metadata["pages"] == 13
     assert source.status == "ready"
 
@@ -314,7 +315,8 @@ def test_source_manager_registers_file():
     assert source.source_id
     assert source.filename == "AWS_Exam.pdf"
     assert source.type == "pdf"
-    assert source.path == str(Path("data/AWS_Exam.pdf"))
+    assert source.path is not None
+    assert source.path.replace("\\", "/") == "data/AWS_Exam.pdf"
     assert source.status == "ready"
 
     stored_source = manager.get_source(

@@ -8,6 +8,7 @@ function PublicFooter() {
     <footer className="border-t border-[var(--color-border)] bg-[var(--color-brand-cream)]">
       <Container>
         <div className="grid gap-10 py-12 sm:grid-cols-2 md:grid-cols-4 md:py-14">
+          {/* Brand */}
           <div className="sm:col-span-2">
             <BrandLogo size="md" />
 
@@ -20,6 +21,7 @@ function PublicFooter() {
             </div>
           </div>
 
+          {/* Navigation */}
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-primary)]">
               Navigation
@@ -46,41 +48,32 @@ function PublicFooter() {
 
               <li>
                 <Link
-                  to="/app/help"
+                  to="/settings"
                   className="text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-primary)]"
                 >
-                  Help
+                  Settings
                 </Link>
               </li>
             </ul>
           </div>
 
+          {/* Built around */}
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-primary)]">
               Built around
             </p>
 
             <div className="mt-4 flex flex-col gap-2.5 text-sm text-[var(--color-text-muted)]">
-              <span className="inline-flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-primary)]" />
-                Your Sources
-              </span>
-
-              <span className="inline-flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
-                Connected Context
-              </span>
-
-              <span className="inline-flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-subtle)]" />
-                Traceable Answers
-              </span>
+              <span>• Your Sources</span>
+              <span>• Connected Context</span>
+              <span>• Traceable Answers</span>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col items-center justify-between gap-4 border-t border-[var(--color-border)] py-6 text-xs text-[var(--color-subtle)] sm:flex-row">
-          <p>
+        {/* Copyright */}
+        <div className="border-t border-[var(--color-border)] py-6">
+          <p className="text-xs text-[var(--color-subtle)]">
             © {new Date().getFullYear()} Context Bridge. All rights reserved.
           </p>
         </div>

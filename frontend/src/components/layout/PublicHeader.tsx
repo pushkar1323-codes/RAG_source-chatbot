@@ -1,12 +1,46 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 
 import Button from '../ui/Button'
 import BrandLogo from '../ui/BrandLogo'
 import Container from './Container'
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+
 function PublicHeader() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [creatingChat, setCreatingChat] = useState(false)
+
+  const navigate = useNavigate()
+
+  async function handleGetStarted() {
+    if (creatingChat) return
+
+    setCreatingChat(true)
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/chats?title=${encodeURIComponent('New conversation')}`,
+        {
+          method: 'POST',
+        },
+      )
+
+      if (!response.ok) {
+        throw new Error('Failed to create chat')
+      }
+
+      const chat: { id: string } = await response.json()
+
+      setMenuOpen(false)
+      navigate(`/chats/${chat.id}`)
+    } catch (error) {
+      console.error('Failed to create chat:', error)
+    } finally {
+      setCreatingChat(false)
+    }
+  }
 
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--color-border)] bg-[var(--color-brand-cream)]/95 backdrop-blur-md">
@@ -42,11 +76,14 @@ function PublicHeader() {
               Sign in
             </Link>
 
-            <Link to="/signup">
-              <Button className="rounded-lg px-5 py-2.5 text-sm font-medium">
-                Get started
-              </Button>
-            </Link>
+            <Button
+              type="button"
+              onClick={handleGetStarted}
+              disabled={creatingChat}
+              className="rounded-lg px-5 py-2.5 text-sm font-medium"
+            >
+              {creatingChat ? 'Creating...' : 'Get started'}
+            </Button>
           </div>
 
           <button
@@ -88,15 +125,14 @@ function PublicHeader() {
                   Sign in
                 </Link>
 
-                <Link
-                  to="/signup"
-                  onClick={() => setMenuOpen(false)}
-                  className="mt-2"
+                <Button
+                  type="button"
+                  onClick={handleGetStarted}
+                  disabled={creatingChat}
+                  className="mt-2 w-full rounded-lg"
                 >
-                  <Button className="w-full rounded-lg">
-                    Get started
-                  </Button>
-                </Link>
+                  {creatingChat ? 'Creating...' : 'Get started'}
+                </Button>
               </div>
             </div>
           )}
