@@ -1,43 +1,18 @@
-import { useState } from 'react'
+// import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import Container from '../../components/layout/Container'
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
+// const API_BASE_URL =
+//   import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
 
 function GettingStartedPage() {
   const navigate = useNavigate()
-  const [creatingChat, setCreatingChat] = useState(false)
+  // const [creatingChat, setCreatingChat] = useState(false)
 
-  async function createNewChat() {
-    if (creatingChat) {
-      return
-    }
-
-    setCreatingChat(true)
-
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/chats?title=${encodeURIComponent('New conversation')}`,
-        {
-          method: 'POST',
-        },
-      )
-
-      if (!response.ok) {
-        throw new Error('Unable to create a new conversation.')
-      }
-
-      const chat: { id: string } = await response.json()
-
-      navigate(`/chats/${chat.id}`)
-    } catch (error) {
-      console.error('Unable to create a new conversation:', error)
-    } finally {
-      setCreatingChat(false)
-    }
-  }
+  function createNewChat() {
+  navigate('/chats/new')
+}
 
   const steps = [
     {
@@ -249,7 +224,7 @@ function GettingStartedPage() {
             <button
               type="button"
               onClick={createNewChat}
-              disabled={creatingChat}
+              // disabled={creatingChat}
               className="mt-7 inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-[var(--color-primary)] transition-colors hover:bg-[var(--color-brand-cream)] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {'Get started →'}

@@ -48,7 +48,6 @@ function AppShell() {
       <header className="sticky top-0 z-50 border-b border-[var(--color-border)] bg-[var(--color-brand-cream)]/95 backdrop-blur">
         <Container>
           <nav className="relative flex min-h-[76px] items-center justify-between gap-6">
-            {/* Brand */}
             <Link
               to="/"
               onClick={closeMenu}
@@ -58,9 +57,7 @@ function AppShell() {
               <BrandLogo size="md" />
             </Link>
 
-            {/* Desktop navigation */}
             <div className="hidden items-center gap-5 xl:flex">
-              {/* Public */}
               <NavLink
                 to="/about"
                 className={desktopNavClass}
@@ -77,7 +74,6 @@ function AppShell() {
 
               <span className="mx-1 h-5 w-px bg-[var(--color-border)]" />
 
-              {/* Workspace */}
               {workspaceNavigation.map((item) => (
                 <NavLink
                   key={item.label}
@@ -91,7 +87,6 @@ function AppShell() {
 
               <span className="mx-1 h-5 w-px bg-[var(--color-border)]" />
 
-              {/* Account */}
               <NavLink
                 to="/profile"
                 className={desktopNavClass}
@@ -107,7 +102,6 @@ function AppShell() {
               </NavLink>
             </div>
 
-            {/* Mobile menu button */}
             <button
               type="button"
               aria-label="Toggle navigation"
@@ -120,11 +114,9 @@ function AppShell() {
               </span>
             </button>
 
-            {/* Mobile navigation */}
             {menuOpen && (
               <div className="absolute left-0 right-0 top-[calc(100%+1px)] border-b border-[var(--color-border)] bg-[var(--color-background)] px-5 py-5 shadow-sm xl:hidden">
                 <div className="flex flex-col gap-1">
-                  {/* Public */}
                   <NavLink
                     to="/about"
                     onClick={closeMenu}
@@ -143,7 +135,6 @@ function AppShell() {
 
                   <div className="my-2 h-px bg-[var(--color-border)]" />
 
-                  {/* Workspace */}
                   {workspaceNavigation.map((item) => (
                     <NavLink
                       key={item.label}
@@ -158,7 +149,6 @@ function AppShell() {
 
                   <div className="my-2 h-px bg-[var(--color-border)]" />
 
-                  {/* Account */}
                   <NavLink
                     to="/profile"
                     onClick={closeMenu}

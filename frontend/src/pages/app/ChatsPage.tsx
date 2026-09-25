@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
+import { useAuth } from '../../context/AuthContext'
 import Button from '../../components/ui/Button'
 import Container from '../../components/layout/Container'
 
@@ -15,21 +16,51 @@ interface Chat {
 
 function ChatsPage() {
   const navigate = useNavigate()
+  const { token, isAuthenticated, isLoading: authLoading } = useAuth()
 
   const [chats, setChats] = useState<Chat[]>([])
   const [loading, setLoading] = useState(true)
-  // const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
+    if (authLoading) {
+      return
+    }
+
+    if (!isAuthenticated || !token) {
+      setChats([])
+      setError('Please sign in to view your conversations.')
+      setLoading(false)
+      return
+    }
+
     let cancelled = false
 
     async function fetchChats() {
       try {
-        const response = await fetch(`${API_BASE_URL}/chats`)
+        setLoading(true)
+        setError('')
+
+        const response = await fetch(`${API_BASE_URL}/chats`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
 
         if (!response.ok) {
-          throw new Error('Unable to load your conversations.')
+          let errorMessage = 'Unable to load your conversations.'
+
+          try {
+            const errorData = await response.json()
+
+            if (typeof errorData.detail === 'string') {
+              errorMessage = errorData.detail
+            }
+          } catch {
+            // The server response did not contain JSON error details.
+          }
+
+          throw new Error(errorMessage)
         }
 
         const data: Chat[] = await response.json()
@@ -57,10 +88,10 @@ function ChatsPage() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [authLoading, isAuthenticated, token])
 
   function createChat() {
-  navigate('/chats/new')
+    navigate('/chats/new')
   }
 
   return (
@@ -87,9 +118,7 @@ function ChatsPage() {
               type="button"
               className="rounded-lg"
               onClick={createChat}
-              // disabled={creating}
             >
-              {/* {creating ? 'Creating...' : 'New chat'} */}
               New chat
             </Button>
           </div>
@@ -119,7 +148,7 @@ function ChatsPage() {
               </span>
             </div>
 
-            {loading ? (
+            {authLoading || loading ? (
               <div className="px-6 py-16 text-center">
                 <p className="text-sm text-[var(--color-subtle)]">
                   Loading your conversations...
@@ -144,9 +173,7 @@ function ChatsPage() {
                   type="button"
                   className="mt-6 rounded-lg"
                   onClick={createChat}
-                  // disabled={creating}
                 >
-                  {/* {creating ? 'Creating...' : 'Start your first chat'} */}
                   Start your first chat
                 </Button>
               </div>

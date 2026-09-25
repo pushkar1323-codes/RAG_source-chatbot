@@ -6,6 +6,8 @@ import {
 } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
+import { useAuth } from '../../context/AuthContext'
+import { useGuest } from '../../context/GuestContext'
 import Button from '../../components/ui/Button'
 import Container from '../../components/layout/Container'
 
@@ -39,10 +41,20 @@ interface Message {
   created_at: string
 }
 
+interface GuestAnswer {
+  answer: string
+  citations: Citation[]
+}
+
 function ChatPage() {
   const { chatId } = useParams<{ chatId: string }>()
   const navigate = useNavigate()
+
+  const { token, isAuthenticated, isLoading: authLoading } = useAuth()
+  const { guestSessionId } = useGuest()
+
   const isDraftChat = !chatId || chatId === 'new'
+  const isGuest = !isAuthenticated
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -55,23 +67,49 @@ function ChatPage() {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [connecting, setConnecting] = useState<string | null>(null)
-  const [removing, setRemoving] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [showSources, setShowSources] = useState(false)
+  const [sourcePickerOpen, setSourcePickerOpen] = useState(false)
+  const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>([])
   const [error, setError] = useState('')
   const [uploadSuccess, setUploadSuccess] = useState('')
 
+  function authenticatedHeaders(): HeadersInit {
+    return token
+      ? {
+          Authorization: `Bearer ${token}`,
+        }
+      : {}
+  }
+
+  function guestHeaders(): HeadersInit {
+    return {
+      'X-Guest-Session-ID': guestSessionId,
+    }
+  }
+
   useEffect(() => {
+    if (authLoading) {
+      return
+    }
+
     let cancelled = false
 
     async function loadChat() {
       try {
         setError('')
+        setLoading(true)
 
         if (isDraftChat) {
           const sourcesResponse = await fetch(
-            `${API_BASE_URL}/sources`,
+            isGuest
+              ? `${API_BASE_URL}/guest/sources`
+              : `${API_BASE_URL}/sources`,
+            {
+              headers: isGuest
+                ? guestHeaders()
+                : authenticatedHeaders(),
+            },
           )
 
           if (!sourcesResponse.ok) {
@@ -91,16 +129,32 @@ function ChatPage() {
           return
         }
 
+        if (isGuest) {
+          throw new Error(
+            'This saved conversation requires an account.',
+          )
+        }
+
+        const headers = authenticatedHeaders()
+
         const [
           chatResponse,
           sourcesResponse,
           connectedResponse,
           messagesResponse,
         ] = await Promise.all([
-          fetch(`${API_BASE_URL}/chats/${chatId}`),
-          fetch(`${API_BASE_URL}/sources`),
-          fetch(`${API_BASE_URL}/chats/${chatId}/sources`),
-          fetch(`${API_BASE_URL}/chats/${chatId}/messages`),
+          fetch(`${API_BASE_URL}/chats/${chatId}`, {
+            headers,
+          }),
+          fetch(`${API_BASE_URL}/sources`, {
+            headers,
+          }),
+          fetch(`${API_BASE_URL}/chats/${chatId}/sources`, {
+            headers,
+          }),
+          fetch(`${API_BASE_URL}/chats/${chatId}/messages`, {
+            headers,
+          }),
         ])
 
         if (!chatResponse.ok) {
@@ -119,11 +173,15 @@ function ChatPage() {
           throw new Error('Unable to load conversation messages.')
         }
 
-        const chatData: Chat = await chatResponse.json()
+        const chatData: Chat =
+          await chatResponse.json()
+
         const sourceData: Source[] =
           await sourcesResponse.json()
+
         const connectedData: Source[] =
           await connectedResponse.json()
+
         const messageData: Message[] =
           await messagesResponse.json()
 
@@ -153,7 +211,15 @@ function ChatPage() {
     return () => {
       cancelled = true
     }
-  }, [chatId, isDraftChat])
+  }, [
+    authLoading,
+    chatId,
+    guestSessionId,
+    isAuthenticated,
+    isDraftChat,
+    isGuest,
+    token,
+  ])
 
   function handleFileSelect(file: File | undefined) {
     if (!file) {
@@ -170,7 +236,9 @@ function ChatPage() {
 
     if (extension !== 'pdf' && extension !== 'txt') {
       setSelectedFile(null)
-      setError('Only PDF and TXT files are currently supported.')
+      setError(
+        'Only PDF and TXT files are currently supported.',
+      )
       return
     }
 
@@ -178,117 +246,163 @@ function ChatPage() {
   }
 
   async function uploadSource() {
-    if (!selectedFile || uploading) {
-      return
+  if (!selectedFile || uploading) {
+    return
+  }
+
+  setUploading(true)
+  setError('')
+  setUploadSuccess('')
+
+  try {
+    const formData = new FormData()
+
+    formData.append('file', selectedFile)
+
+    const sourceResponse = await fetch(
+      isGuest
+        ? `${API_BASE_URL}/guest/sources`
+        : `${API_BASE_URL}/sources`,
+      {
+        method: 'POST',
+        headers: isGuest
+          ? guestHeaders()
+          : authenticatedHeaders(),
+        body: formData,
+      },
+    )
+
+    if (!sourceResponse.ok) {
+      let errorMessage =
+        'Unable to upload this source.'
+
+      try {
+        const errorData =
+          await sourceResponse.json()
+
+        if (typeof errorData.detail === 'string') {
+          errorMessage = errorData.detail
+        }
+      } catch {
+        // The server response did not contain JSON error details.
+      }
+
+      throw new Error(errorMessage)
     }
 
-    setUploading(true)
-    setError('')
-    setUploadSuccess('')
+    const source: Source =
+      await sourceResponse.json()
 
-    try {
-      const formData = new FormData()
-      formData.append('file', selectedFile)
-
-      const sourceResponse = await fetch(
-        `${API_BASE_URL}/sources`,
+    /*
+     * Guest sources and draft-chat sources are kept
+     * in local state until they are used in the
+     * appropriate guest or first-message flow.
+     *
+     * An existing authenticated chat must persist
+     * the source-to-chat relationship immediately.
+     */
+    if (!isGuest && !isDraftChat && chatId) {
+      const attachResponse = await fetch(
+        `${API_BASE_URL}/chats/${chatId}/sources/${source.source_id}`,
         {
           method: 'POST',
-          body: formData,
+          headers: authenticatedHeaders(),
         },
       )
 
-      if (!sourceResponse.ok) {
-        let message = 'Unable to upload this source.'
+      if (!attachResponse.ok) {
+        let errorMessage =
+          'The source was uploaded, but could not be connected to this conversation.'
 
         try {
-          const errorData = await sourceResponse.json()
+          const errorData =
+            await attachResponse.json()
 
           if (typeof errorData.detail === 'string') {
-            message = errorData.detail
+            errorMessage = errorData.detail
           }
         } catch {
           // The server response did not contain JSON error details.
         }
 
-        throw new Error(message)
+        throw new Error(errorMessage)
       }
-
-      const source: Source = await sourceResponse.json()
-
-      if (!isDraftChat) {
-        const attachResponse = await fetch(
-          `${API_BASE_URL}/chats/${chatId}/sources/${source.source_id}`,
-          {
-            method: 'POST',
-          },
-        )
-
-        if (!attachResponse.ok) {
-          let errorMessage =
-            'The source was uploaded but could not be connected to this conversation.'
-
-          try {
-            const errorData = await attachResponse.json()
-
-            if (typeof errorData.detail === 'string') {
-              errorMessage = errorData.detail
-            }
-          } catch {
-            // The server response did not contain JSON error details.
-          }
-
-          throw new Error(errorMessage)
-        }
-      }
-
-      setAllSources((currentSources) => {
-        const alreadyExists = currentSources.some(
-          (item) => item.source_id === source.source_id,
-        )
-
-        if (alreadyExists) {
-          return currentSources
-        }
-
-        return [source, ...currentSources]
-      })
-
-      setConnectedSources((currentSources) => {
-        const alreadyConnected = currentSources.some(
-          (item) => item.source_id === source.source_id,
-        )
-
-        if (alreadyConnected) {
-          return currentSources
-        }
-
-        return [...currentSources, source]
-      })
-
-      setSelectedFile(null)
-      setUploadSuccess(
-        `"${source.filename}" is ready to use in this conversation.`,
-      )
-
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
-
-      setShowSources(false)
-    } catch (requestError) {
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : 'Unable to upload this source.',
-      )
-    } finally {
-      setUploading(false)
     }
+
+    setAllSources((currentSources) => {
+      const alreadyExists = currentSources.some(
+        (item) =>
+          item.source_id === source.source_id,
+      )
+
+      if (alreadyExists) {
+        return currentSources
+      }
+
+      return [source, ...currentSources]
+    })
+
+    setConnectedSources((currentSources) => {
+      const alreadyConnected =
+        currentSources.some(
+          (item) =>
+            item.source_id === source.source_id,
+        )
+
+      if (alreadyConnected) {
+        return currentSources
+      }
+
+      return [...currentSources, source]
+    })
+
+    setSelectedFile(null)
+
+    setUploadSuccess(
+      `"${source.filename}" is ready to use in this conversation.`,
+    )
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+
+    setSourcePickerOpen(false)
+  } catch (requestError) {
+    setError(
+      requestError instanceof Error
+        ? requestError.message
+        : 'Unable to upload this source.',
+    )
+  } finally {
+    setUploading(false)
+  }
+}
+
+
+
+  function toggleSourceSelection(sourceId: string) {
+    setSelectedSourceIds((currentIds) =>
+      currentIds.includes(sourceId)
+        ? currentIds.filter((id) => id !== sourceId)
+        : [...currentIds, sourceId],
+    )
+  }
+
+  async function addSelectedSources() {
+    if (selectedSourceIds.length === 0 || connecting) {
+      return
+    }
+
+    for (const sourceId of selectedSourceIds) {
+      await connectSource(sourceId)
+    }
+
+    setSelectedSourceIds([])
+    setSourcePickerOpen(false)
   }
 
   async function connectSource(sourceId: string) {
-    if (connecting || removing) {
+    if (connecting) {
       return
     }
 
@@ -305,11 +419,12 @@ function ChatPage() {
     setUploadSuccess('')
 
     try {
-      if (isDraftChat) {
+      if (isDraftChat || isGuest) {
         setConnectedSources((currentSources) => {
           if (
             currentSources.some(
-              (item) => item.source_id === source.source_id,
+              (item) =>
+                item.source_id === source.source_id,
             )
           ) {
             return currentSources
@@ -318,22 +433,24 @@ function ChatPage() {
           return [...currentSources, source]
         })
 
-        setShowSources(false)
-        return
+          return
       }
 
       const response = await fetch(
         `${API_BASE_URL}/chats/${chatId}/sources/${sourceId}`,
         {
           method: 'POST',
+          headers: authenticatedHeaders(),
         },
       )
 
       if (!response.ok) {
-        let errorMessage = 'Unable to connect this source.'
+        let errorMessage =
+          'Unable to connect this source.'
 
         try {
-          const errorData = await response.json()
+          const errorData =
+            await response.json()
 
           if (typeof errorData.detail === 'string') {
             errorMessage = errorData.detail
@@ -348,7 +465,8 @@ function ChatPage() {
       setConnectedSources((currentSources) => {
         if (
           currentSources.some(
-            (item) => item.source_id === source.source_id,
+            (item) =>
+              item.source_id === source.source_id,
           )
         ) {
           return currentSources
@@ -357,7 +475,6 @@ function ChatPage() {
         return [...currentSources, source]
       })
 
-      setShowSources(false)
     } catch (requestError) {
       setError(
         requestError instanceof Error
@@ -370,34 +487,31 @@ function ChatPage() {
   }
 
   async function removeSource(sourceId: string) {
-    if (removing || connecting) {
+    if (isDraftChat || isGuest) {
+      setConnectedSources((currentSources) =>
+        currentSources.filter(
+          (source) => source.source_id !== sourceId,
+        ),
+      )
+      setError('')
+      setUploadSuccess('')
       return
     }
 
-    setRemoving(sourceId)
     setError('')
     setUploadSuccess('')
 
     try {
-      if (isDraftChat) {
-        setConnectedSources((currentSources) =>
-          currentSources.filter(
-            (source) => source.source_id !== sourceId,
-          ),
-        )
-
-        return
-      }
-
       const response = await fetch(
         `${API_BASE_URL}/chats/${chatId}/sources/${sourceId}`,
         {
           method: 'DELETE',
+          headers: authenticatedHeaders(),
         },
       )
 
       if (!response.ok) {
-        let errorMessage = 'Unable to remove this source from the chat.'
+        let errorMessage = 'Unable to remove this source.'
 
         try {
           const errorData = await response.json()
@@ -421,14 +535,14 @@ function ChatPage() {
       setError(
         requestError instanceof Error
           ? requestError.message
-          : 'Unable to remove this source from the chat.',
+          : 'Unable to remove this source.',
       )
-    } finally {
-      setRemoving(null)
     }
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(
+    event: FormEvent<HTMLFormElement>,
+  ) {
     event.preventDefault()
 
     if (!message.trim() || sending) {
@@ -439,7 +553,7 @@ function ChatPage() {
       setError(
         'Connect at least one source before asking a question.',
       )
-      setShowSources(true)
+      fileInputRef.current?.click()
       return
     }
 
@@ -450,6 +564,64 @@ function ChatPage() {
     const question = message.trim()
 
     try {
+      if (isGuest) {
+        const response = await fetch(
+          `${API_BASE_URL}/guest/ask`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...guestHeaders(),
+            },
+            body: JSON.stringify({
+              question,
+              source_ids: connectedSources.map(
+                (source) => source.source_id,
+              ),
+            }),
+          },
+        )
+
+        if (!response.ok) {
+          let errorMessage =
+            'Unable to send your question.'
+
+          try {
+            const errorData =
+              await response.json()
+
+            if (typeof errorData.detail === 'string') {
+              errorMessage = errorData.detail
+            }
+          } catch {
+            // The server response did not contain JSON error details.
+          }
+
+          throw new Error(errorMessage)
+        }
+
+        const guestResponse: GuestAnswer =
+          await response.json()
+
+        const guestMessage: Message = {
+          message_id: `guest-${Date.now()}`,
+          chat_id: 'guest',
+          question,
+          answer: guestResponse.answer,
+          citations: guestResponse.citations,
+          created_at: new Date().toISOString(),
+        }
+
+        setMessages((currentMessages) => [
+          ...currentMessages,
+          guestMessage,
+        ])
+
+        setMessage('')
+
+        return
+      }
+
       let activeChatId = chatId
 
       if (isDraftChat) {
@@ -462,6 +634,7 @@ function ChatPage() {
           `${API_BASE_URL}/chats?title=${encodeURIComponent(title)}`,
           {
             method: 'POST',
+            headers: authenticatedHeaders(),
           },
         )
 
@@ -470,7 +643,8 @@ function ChatPage() {
             'Unable to create the conversation.'
 
           try {
-            const errorData = await chatResponse.json()
+            const errorData =
+              await chatResponse.json()
 
             if (typeof errorData.detail === 'string') {
               errorMessage = errorData.detail
@@ -488,12 +662,14 @@ function ChatPage() {
         activeChatId = createdChat.id
 
         for (const source of connectedSources) {
-          const attachResponse = await fetch(
-            `${API_BASE_URL}/chats/${createdChat.id}/sources/${source.source_id}`,
-            {
-              method: 'POST',
-            },
-          )
+          const attachResponse =
+            await fetch(
+              `${API_BASE_URL}/chats/${createdChat.id}/sources/${source.source_id}`,
+              {
+                method: 'POST',
+                headers: authenticatedHeaders(),
+              },
+            )
 
           if (!attachResponse.ok) {
             throw new Error(
@@ -510,7 +686,9 @@ function ChatPage() {
       }
 
       if (!activeChatId) {
-        throw new Error('Unable to determine the conversation.')
+        throw new Error(
+          'Unable to determine the conversation.',
+        )
       }
 
       const response = await fetch(
@@ -519,6 +697,7 @@ function ChatPage() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            ...authenticatedHeaders(),
           },
           body: JSON.stringify({
             question,
@@ -527,10 +706,12 @@ function ChatPage() {
       )
 
       if (!response.ok) {
-        let errorMessage = 'Unable to send your question.'
+        let errorMessage =
+          'Unable to send your question.'
 
         try {
-          const errorData = await response.json()
+          const errorData =
+            await response.json()
 
           if (typeof errorData.detail === 'string') {
             errorMessage = errorData.detail
@@ -542,7 +723,8 @@ function ChatPage() {
         throw new Error(errorMessage)
       }
 
-      const newMessage: Message = await response.json()
+      const newMessage: Message =
+        await response.json()
 
       setMessages((currentMessages) => [
         ...currentMessages,
@@ -565,11 +747,12 @@ function ChatPage() {
     (source) =>
       !connectedSources.some(
         (connectedSource) =>
-          connectedSource.source_id === source.source_id,
+          connectedSource.source_id ===
+          source.source_id,
       ),
   )
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="py-10">
         <Container>
@@ -601,14 +784,6 @@ function ChatPage() {
               </h1>
             </div>
 
-            <Button
-              type="button"
-              variant="secondary"
-              className="rounded-lg"
-              onClick={() => setShowSources((current) => !current)}
-            >
-              {showSources ? 'Close sources' : 'Add source'}
-            </Button>
           </div>
         </section>
 
@@ -643,15 +818,6 @@ function ChatPage() {
                       : 'Add a source to give this conversation its context.'}
                   </p>
 
-                  {connectedSources.length === 0 && (
-                    <Button
-                      type="button"
-                      className="mt-6 rounded-lg"
-                      onClick={() => setShowSources(true)}
-                    >
-                      Add a source
-                    </Button>
-                  )}
                 </div>
               ) : (
                 <div className="space-y-8">
@@ -669,14 +835,18 @@ function ChatPage() {
                         </p>
 
                         {connectedSources.length > 1 &&
-                          getReferenceNames(item.citations).length > 0 && (
+                          getReferenceNames(
+                            item.citations,
+                          ).length > 0 && (
                             <div className="mt-4 border-t border-[var(--color-border)] pt-3">
                               <p className="font-serif text-xs font-bold uppercase tracking-widest text-[var(--color-accent)]">
                                 References
                               </p>
 
                               <div className="mt-2 flex flex-wrap gap-2">
-                                {getReferenceNames(item.citations).map(
+                                {getReferenceNames(
+                                  item.citations,
+                                ).map(
                                   (sourceName) => (
                                     <span
                                       key={`${item.message_id}-${sourceName}`}
@@ -711,7 +881,8 @@ function ChatPage() {
                     }
                     rows={3}
                     disabled={
-                      sending || connectedSources.length === 0
+                      sending ||
+                      connectedSources.length === 0
                     }
                     className="w-full resize-none border-0 bg-transparent px-2 py-1 text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-subtle)] disabled:cursor-not-allowed disabled:opacity-60"
                   />
@@ -734,7 +905,9 @@ function ChatPage() {
                         connectedSources.length === 0
                       }
                     >
-                      {sending ? 'Thinking...' : 'Send'}
+                      {sending
+                        ? 'Thinking...'
+                        : 'Send'}
                     </Button>
                   </div>
                 </div>
@@ -743,34 +916,28 @@ function ChatPage() {
           </div>
 
           <aside className="h-fit rounded-xl border border-[var(--color-border)] bg-white">
-            <div className="flex items-center justify-between border-b border-[var(--color-border)] px-5 py-4">
-              <div>
-                <p className="font-serif text-xs font-bold uppercase tracking-widest text-[var(--color-accent)]">
-                  Context
-                </p>
+            <div className="border-b border-[var(--color-border)] px-5 py-4">
+              <p className="font-serif text-xs font-bold uppercase tracking-widest text-[var(--color-accent)]">
+                Context
+              </p>
 
-                <h2 className="mt-1 font-serif text-xl font-bold text-[var(--color-primary)]">
+              <div className="mt-1 flex items-center justify-between gap-3">
+                <h2 className="font-serif text-xl font-bold text-[var(--color-primary)]">
                   {connectedSources.length > 1
                     ? 'Connected sources'
                     : 'Source context'}
                 </h2>
-              </div>
 
-              <button
-                type="button"
-                onClick={() =>
-                  setShowSources((current) => !current)
-                }
-                className="text-sm font-semibold text-[var(--color-primary)] hover:text-[var(--color-accent-dark)]"
-              >
-                {showSources ? 'Close' : 'Add'}
-              </button>
+                <span className="text-xs text-[var(--color-subtle)]">
+                  {connectedSources.length} connected
+                </span>
+              </div>
             </div>
 
             <div className="p-5">
               {connectedSources.length === 0 ? (
-                <div className="py-6 text-center">
-                  <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg bg-[var(--color-brand-soft)] font-serif text-lg font-bold text-[var(--color-primary)]">
+                <div className="rounded-lg border border-dashed border-[var(--color-border-soft)] bg-[var(--color-brand-cream)] p-5 text-center">
+                  <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-brand-soft)] font-serif text-lg font-bold text-[var(--color-primary)]">
                     +
                   </div>
 
@@ -779,148 +946,201 @@ function ChatPage() {
                   </h3>
 
                   <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
-                    Add a source to give this conversation its
-                    context.
+                    Add a PDF or TXT file to give this conversation its context.
                   </p>
-
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="mt-5 w-full rounded-lg"
-                    onClick={() => setShowSources(true)}
-                  >
-                    Add a source
-                  </Button>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {connectedSources.map((source) => (
                     <div
                       key={source.source_id}
-                      className="rounded-lg border border-[var(--color-border)] bg-[var(--color-brand-cream)] p-3"
+                      className="flex items-center justify-between gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-brand-cream)] p-3"
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-[var(--color-primary)]">
-                            {source.filename}
-                          </p>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-[var(--color-primary)]">
+                          {source.filename}
+                        </p>
 
-                          <p className="mt-1 text-xs uppercase text-[var(--color-subtle)]">
-                            {source.type}
-                          </p>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            removeSource(source.source_id)
-                          }
-                          disabled={
-                            removing !== null ||
-                            connecting !== null
-                          }
-                          className="shrink-0 text-xs font-semibold text-[var(--color-subtle)] transition-colors hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {removing === source.source_id
-                            ? 'Removing...'
-                            : 'Remove'}
-                        </button>
+                        <p className="mt-1 text-xs uppercase text-[var(--color-subtle)]">
+                          {source.type}
+                        </p>
                       </div>
+
+                      <button
+                        type="button"
+                        className="shrink-0 text-xs font-semibold text-[var(--color-subtle)] hover:text-red-600"
+                        onClick={() => removeSource(source.source_id)}
+                      >
+                        Remove
+                      </button>
                     </div>
                   ))}
                 </div>
               )}
 
-              {showSources && (
-                <div className="mt-5 border-t border-[var(--color-border)] pt-5">
-                  <p className="font-serif text-sm font-bold text-[var(--color-primary)]">
-                    Add another source
-                  </p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.txt"
+                className="hidden"
+                onChange={(event) =>
+                  handleFileSelect(event.target.files?.[0])
+                }
+              />
 
-                  <div className="mt-3 rounded-lg border border-dashed border-[var(--color-border-soft)] bg-[var(--color-brand-cream)] p-4">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".pdf,.txt"
-                      className="hidden"
-                      onChange={(event) =>
-                        handleFileSelect(event.target.files?.[0])
-                      }
-                    />
+              <Button
+                type="button"
+                variant="secondary"
+                className="mt-5 w-full rounded-lg"
+                onClick={() => setSourcePickerOpen(true)}
+              >
+                + Add source
+              </Button>
 
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="w-full rounded-lg"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploading}
-                    >
-                      Choose PDF or TXT
-                    </Button>
-
-                    {selectedFile && (
-                      <div className="mt-3">
-                        <p className="truncate text-sm font-medium text-[var(--color-text)]">
-                          {selectedFile.name}
+              {sourcePickerOpen && (
+                <div
+                  className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 px-4 py-6"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="source-picker-title"
+                  onClick={() => setSourcePickerOpen(false)}
+                >
+                  <div
+                    className="w-full max-w-lg rounded-2xl border border-[var(--color-border)] bg-white p-6 shadow-xl"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-accent-dark)]">
+                          Sources
                         </p>
+                        <h2
+                          id="source-picker-title"
+                          className="mt-2 font-serif text-2xl font-bold text-[var(--color-primary)]"
+                        >
+                          Add source
+                        </h2>
+                        <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
+                          Upload a new PDF or TXT file, or select sources already in your library.
+                        </p>
+                      </div>
 
+                      <button
+                        type="button"
+                        onClick={() => setSourcePickerOpen(false)}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--color-border)] text-lg text-[var(--color-subtle)] hover:bg-[var(--color-brand-soft)] hover:text-[var(--color-primary)]"
+                        aria-label="Close source picker"
+                      >
+                        ×
+                      </button>
+                    </div>
+
+                    <div className="mt-6 rounded-xl border border-[var(--color-border-soft)] bg-[var(--color-brand-cream)] p-4">
+                      <p className="font-serif text-base font-bold text-[var(--color-primary)]">
+                        Upload new source
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-[var(--color-subtle)]">
+                        PDF and TXT files are currently supported.
+                      </p>
+
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="mt-3 w-full rounded-lg"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                      >
+                        {selectedFile ? selectedFile.name : 'Choose PDF or TXT'}
+                      </Button>
+
+                      {selectedFile && (
                         <Button
                           type="button"
                           className="mt-3 w-full rounded-lg"
                           onClick={uploadSource}
                           disabled={uploading}
                         >
-                          {uploading
-                            ? 'Uploading...'
-                            : 'Upload and connect'}
+                          {uploading ? 'Uploading...' : 'Upload and connect'}
                         </Button>
+                      )}
+                    </div>
+
+                    {!isGuest && unconnectedSources.length > 0 && (
+                      <div className="mt-5">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="font-serif text-base font-bold text-[var(--color-primary)]">
+                            Existing sources
+                          </p>
+                          <span className="text-xs text-[var(--color-subtle)]">
+                            {selectedSourceIds.length} selected
+                          </span>
+                        </div>
+
+                        <div className="mt-3 max-h-56 space-y-2 overflow-y-auto pr-1">
+                          {unconnectedSources.map((source) => {
+                            const selected = selectedSourceIds.includes(source.source_id)
+
+                            return (
+                              <button
+                                key={source.source_id}
+                                type="button"
+                                onClick={() => toggleSourceSelection(source.source_id)}
+                                className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
+                                  selected
+                                    ? 'border-[var(--color-accent)] bg-[var(--color-brand-soft)]'
+                                    : 'border-[var(--color-border)] hover:bg-[var(--color-brand-soft)]'
+                                }`}
+                              >
+                                <span
+                                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border text-xs font-bold ${
+                                    selected
+                                      ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white'
+                                      : 'border-[var(--color-border-soft)] bg-white text-transparent'
+                                  }`}
+                                  aria-hidden="true"
+                                >
+                                  ✓
+                                </span>
+
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate text-sm font-semibold text-[var(--color-primary)]">
+                                    {source.filename}
+                                  </span>
+                                  <span className="mt-1 block text-xs uppercase text-[var(--color-subtle)]">
+                                    {source.type}
+                                  </span>
+                                </span>
+                              </button>
+                            )
+                          })}
+                        </div>
                       </div>
                     )}
 
-                    <p className="mt-3 text-center text-xs leading-5 text-[var(--color-subtle)]">
-                      PDF and TXT files are currently supported.
-                    </p>
-                  </div>
-
-                  <div className="mt-6 border-t border-[var(--color-border)] pt-5">
-                    <p className="font-serif text-sm font-bold text-[var(--color-primary)]">
-                      Existing sources
-                    </p>
-
-                    {unconnectedSources.length === 0 ? (
-                      <p className="mt-3 text-sm leading-6 text-[var(--color-subtle)]">
-                        All available sources are already connected.
-                      </p>
-                    ) : (
-                      <div className="mt-3 space-y-2">
-                        {unconnectedSources.map((source) => (
-                          <div
-                            key={source.source_id}
-                            className="flex items-center justify-between gap-3 rounded-lg border border-[var(--color-border)] p-3"
-                          >
-                            <p className="min-w-0 truncate text-sm text-[var(--color-text)]">
-                              {source.filename}
-                            </p>
-
-                            <Button
-                              type="button"
-                              className="shrink-0 rounded-lg px-3 py-2 text-xs"
-                              onClick={() =>
-                                connectSource(source.source_id)
-                              }
-                              disabled={connecting !== null}
-                            >
-                              {connecting === source.source_id
-                                ? 'Adding...'
-                                : 'Add'}
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    <div className="mt-6 flex justify-end gap-3 border-t border-[var(--color-border)] pt-4">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="rounded-lg"
+                        onClick={() => setSourcePickerOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      {!isGuest && (
+                        <Button
+                          type="button"
+                          className="rounded-lg"
+                          onClick={addSelectedSources}
+                          disabled={selectedSourceIds.length === 0 || connecting !== null}
+                        >
+                          {connecting ? 'Adding...' : 'Add selected'}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
+
             </div>
           </aside>
         </section>
@@ -938,7 +1158,9 @@ function getReferenceNames(citations: Citation[]) {
 
       return getDisplaySourceName(citation.source)
     })
-    .filter((name): name is string => Boolean(name))
+    .filter(
+      (name): name is string => Boolean(name),
+    )
 
   return Array.from(new Set(names))
 }
@@ -954,7 +1176,10 @@ function getDisplaySourceName(source: string) {
   const uuidPrefixPattern =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_/i
 
-  return filename.replace(uuidPrefixPattern, '')
+  return filename.replace(
+    uuidPrefixPattern,
+    '',
+  )
 }
 
 export default ChatPage

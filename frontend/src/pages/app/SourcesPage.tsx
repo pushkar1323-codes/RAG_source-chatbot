@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 
+import { useAuth } from '../../context/AuthContext'
 import Button from '../../components/ui/Button'
 import Container from '../../components/layout/Container'
 
@@ -17,6 +19,8 @@ interface Source {
 }
 
 function SourcesPage() {
+  const { token, isAuthenticated, isLoading: authLoading } = useAuth()
+
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -30,6 +34,17 @@ function SourcesPage() {
   const [success, setSuccess] = useState('')
 
   useEffect(() => {
+    if (authLoading) {
+      return
+    }
+
+    if (!isAuthenticated || !token) {
+      setSources([])
+      setError('Please sign in to access your sources.')
+      setLoadingSources(false)
+      return
+    }
+
     let cancelled = false
 
     async function loadSources() {
@@ -37,10 +52,26 @@ function SourcesPage() {
         setLoadingSources(true)
         setError('')
 
-        const response = await fetch(`${API_BASE_URL}/sources`)
+        const response = await fetch(`${API_BASE_URL}/sources`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
 
         if (!response.ok) {
-          throw new Error('Unable to load your sources.')
+          let message = 'Unable to load your sources.'
+
+          try {
+            const errorData = await response.json()
+
+            if (typeof errorData.detail === 'string') {
+              message = errorData.detail
+            }
+          } catch {
+            // The server response did not contain JSON error details.
+          }
+
+          throw new Error(message)
         }
 
         const data: Source[] = await response.json()
@@ -68,7 +99,7 @@ function SourcesPage() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [authLoading, isAuthenticated, token])
 
   function handleFileSelect(file: File | undefined) {
     if (!file) {
@@ -103,7 +134,7 @@ function SourcesPage() {
   }
 
   async function uploadSource() {
-    if (!selectedFile || uploading) {
+    if (!selectedFile || uploading || !token) {
       return
     }
 
@@ -117,6 +148,9 @@ function SourcesPage() {
 
       const sourceResponse = await fetch(`${API_BASE_URL}/sources`, {
         method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
         body: formData,
       })
 
@@ -170,7 +204,7 @@ function SourcesPage() {
   }
 
   async function deleteSource(source: Source) {
-    if (deletingSourceId) {
+    if (deletingSourceId || !token) {
       return
     }
 
@@ -191,6 +225,9 @@ function SourcesPage() {
         `${API_BASE_URL}/sources/${source.source_id}`,
         {
           method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         },
       )
 
@@ -226,6 +263,48 @@ function SourcesPage() {
     } finally {
       setDeletingSourceId(null)
     }
+  }
+
+  if (authLoading) {
+    return (
+      <div className="py-8 sm:py-10">
+        <Container>
+          <div className="py-16 text-center">
+            <p className="text-sm text-[var(--color-subtle)]">
+              Loading your sources...
+            </p>
+          </div>
+        </Container>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated || !token) {
+    return (
+      <div className="py-12 sm:py-16">
+        <Container>
+          <div className="mx-auto max-w-2xl rounded-2xl border border-[var(--color-border)] bg-white p-8 text-center sm:p-12">
+            <p className="font-serif text-xs font-bold uppercase tracking-widest text-[var(--color-accent)]">
+              Sources
+            </p>
+
+            <h1 className="mt-3 font-serif text-3xl font-bold text-[var(--color-primary)]">
+              Sign in to access your sources.
+            </h1>
+
+            <p className="mx-auto mt-4 max-w-lg text-sm leading-6 text-[var(--color-text-muted)]">
+              Your source library is private to your Context Bridge account.
+            </p>
+
+            <Link to="/login" className="mt-7 inline-block">
+              <Button className="rounded-lg px-7">
+                Sign in
+              </Button>
+            </Link>
+          </div>
+        </Container>
+      </div>
+    )
   }
 
   return (
@@ -371,8 +450,7 @@ function SourcesPage() {
             </div>
 
             <span className="text-sm text-[var(--color-subtle)]">
-              {sources.length}{' '}
-              {sources.length === 1 ? 'source' : 'sources'}
+              {sources.length} {sources.length === 1 ? 'source' : 'sources'}
             </span>
           </div>
 
@@ -393,8 +471,8 @@ function SourcesPage() {
               </h3>
 
               <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[var(--color-text-muted)]">
-                Add your first PDF or TXT file and it will appear here
-                once the source is processed.
+                Add your first PDF or TXT file and it will appear here once
+                the source is processed.
               </p>
             </div>
           ) : (

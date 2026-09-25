@@ -4,42 +4,27 @@ import { useNavigate, Link } from 'react-router-dom'
 import Button from '../ui/Button'
 import BrandLogo from '../ui/BrandLogo'
 import Container from './Container'
+import { useAuth } from '../../context/AuthContext'
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+// const API_BASE_URL =
+//   import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
 function PublicHeader() {
   const [menuOpen, setMenuOpen] = useState(false)
-  const [creatingChat, setCreatingChat] = useState(false)
+  // const [creatingChat, setCreatingChat] = useState(false)
 
   const navigate = useNavigate()
+  const { user, isAuthenticated, isLoading, logout } = useAuth()
 
-  async function handleGetStarted() {
-    if (creatingChat) return
+  function handleGetStarted() {
+  setMenuOpen(false)
+  navigate('/chats/new')
+  }
 
-    setCreatingChat(true)
-
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/chats?title=${encodeURIComponent('New conversation')}`,
-        {
-          method: 'POST',
-        },
-      )
-
-      if (!response.ok) {
-        throw new Error('Failed to create chat')
-      }
-
-      const chat: { id: string } = await response.json()
-
-      setMenuOpen(false)
-      navigate(`/chats/${chat.id}`)
-    } catch (error) {
-      console.error('Failed to create chat:', error)
-    } finally {
-      setCreatingChat(false)
-    }
+  function handleLogout() {
+    logout()
+    setMenuOpen(false)
+    navigate('/')
   }
 
   return (
@@ -69,20 +54,42 @@ function PublicHeader() {
               Getting Started
             </Link>
 
-            <Link
-              to="/login"
-              className="text-sm font-semibold text-[var(--color-primary)] transition-colors hover:text-[var(--color-accent)]"
-            >
-              Sign in
-            </Link>
+            {!isLoading && !isAuthenticated && (
+              <Link
+                to="/login"
+                className="text-sm font-semibold text-[var(--color-primary)] transition-colors hover:text-[var(--color-accent)]"
+              >
+                Sign in
+              </Link>
+            )}
+
+            {!isLoading && isAuthenticated && user && (
+              <>
+                <Link
+                  to="/profile"
+                  className="text-sm font-medium text-[var(--color-primary)] transition-colors hover:text-[var(--color-accent)]"
+                >
+                  {user.email}
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="text-sm font-semibold text-[var(--color-primary)] transition-colors hover:text-[var(--color-accent)]"
+                >
+                  Sign out
+                </button>
+              </>
+            )}
 
             <Button
               type="button"
               onClick={handleGetStarted}
-              disabled={creatingChat}
+              // disabled={creatingChat}
               className="rounded-lg px-5 py-2.5 text-sm font-medium"
             >
-              {creatingChat ? 'Creating...' : 'Get started'}
+              {/* {creatingChat ? 'Creating...' : 'Get started'} */}
+              Get started
             </Button>
           </div>
 
@@ -117,21 +124,44 @@ function PublicHeader() {
                   Getting Started
                 </Link>
 
-                <Link
-                  to="/login"
-                  onClick={() => setMenuOpen(false)}
-                  className="rounded-lg px-4 py-3 text-sm font-medium text-[var(--color-primary)] hover:bg-[var(--color-brand-soft)]"
-                >
-                  Sign in
-                </Link>
+                {!isLoading && !isAuthenticated && (
+                  <Link
+                    to="/login"
+                    onClick={() => setMenuOpen(false)}
+                    className="rounded-lg px-4 py-3 text-sm font-medium text-[var(--color-primary)] hover:bg-[var(--color-brand-soft)]"
+                  >
+                    Sign in
+                  </Link>
+                )}
+
+                {!isLoading && isAuthenticated && user && (
+                  <>
+                    <Link
+                      to="/profile"
+                      onClick={() => setMenuOpen(false)}
+                      className="rounded-lg px-4 py-3 text-sm font-medium text-[var(--color-primary)] hover:bg-[var(--color-brand-soft)]"
+                    >
+                      {user.email}
+                    </Link>
+
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="rounded-lg px-4 py-3 text-left text-sm font-medium text-[var(--color-primary)] hover:bg-[var(--color-brand-soft)]"
+                    >
+                      Sign out
+                    </button>
+                  </>
+                )}
 
                 <Button
                   type="button"
                   onClick={handleGetStarted}
-                  disabled={creatingChat}
+                  // disabled={creatingChat}
                   className="mt-2 w-full rounded-lg"
                 >
-                  {creatingChat ? 'Creating...' : 'Get started'}
+                  {/* {creatingChat ? 'Creating...' : 'Get started'} */}
+                  Get started
                 </Button>
               </div>
             </div>

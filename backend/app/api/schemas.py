@@ -90,3 +90,21 @@ class MessageResponse(BaseModel):
     answer: str
     citations: list[CitationResponse]
     created_at: datetime
+
+
+class GuestAskRequest(BaseModel):
+    """
+    Request body for asking a question in a guest session.
+    """
+
+    question: str
+    source_ids: list[str]
+
+
+class GuestAnswerResponse(BaseModel):
+    """
+    Non-persisted answer returned for a guest session.
+    """
+
+    answer: str
+    citations: list[CitationResponse]

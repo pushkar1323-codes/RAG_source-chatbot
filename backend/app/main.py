@@ -3,7 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.auth import router as auth_router
 from app.api.routes.chats import router as chats_router
+from app.api.routes.guest import router as guest_router
 from app.api.routes.sources import router as sources_router
+
 
 
 app = FastAPI(
@@ -38,3 +40,4 @@ def health_check():
 app.include_router(auth_router)
 app.include_router(sources_router)
 app.include_router(chats_router)
+app.include_router(guest_router)

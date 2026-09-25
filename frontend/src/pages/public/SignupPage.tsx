@@ -1,10 +1,54 @@
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import type { FormEvent } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 
+import { useAuth } from '../../context/AuthContext'
 import BrandLogo from '../../components/ui/BrandLogo'
 import Button from '../../components/ui/Button'
 import Container from '../../components/layout/Container'
 
 function SignupPage() {
+  const navigate = useNavigate()
+  const { register } = useAuth()
+
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    setError('')
+
+    if (!name.trim()) {
+      setError('Please enter your name.')
+      return
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.')
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      await register(email.trim(), password)
+      navigate('/', { replace: true })
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Unable to create your account. Please try again.',
+      )
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
     <div className="min-h-[calc(100vh-5rem)] bg-[var(--color-background)]">
       <Container>
@@ -25,7 +69,10 @@ function SignupPage() {
             </div>
 
             <div className="rounded-2xl border border-[var(--color-border)] bg-white p-6 sm:p-8">
-              <form className="space-y-5">
+              <form
+                className="space-y-5"
+                onSubmit={handleSubmit}
+              >
                 <div>
                   <label
                     htmlFor="name"
@@ -40,7 +87,13 @@ function SignupPage() {
                     type="text"
                     autoComplete="name"
                     placeholder="Your name"
-                    className="w-full rounded-[var(--radius-input)] border border-[var(--color-border-soft)] bg-white px-4 py-3 text-sm text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-subtle)] focus:border-[var(--color-primary)]"
+                    value={name}
+                    onChange={(event) =>
+                      setName(event.target.value)
+                    }
+                    required
+                    disabled={isSubmitting}
+                    className="w-full rounded-[var(--radius-input)] border border-[var(--color-border-soft)] bg-white px-4 py-3 text-sm text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-subtle)] focus:border-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-60"
                   />
                 </div>
 
@@ -58,7 +111,13 @@ function SignupPage() {
                     type="email"
                     autoComplete="email"
                     placeholder="you@example.com"
-                    className="w-full rounded-[var(--radius-input)] border border-[var(--color-border-soft)] bg-white px-4 py-3 text-sm text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-subtle)] focus:border-[var(--color-primary)]"
+                    value={email}
+                    onChange={(event) =>
+                      setEmail(event.target.value)
+                    }
+                    required
+                    disabled={isSubmitting}
+                    className="w-full rounded-[var(--radius-input)] border border-[var(--color-border-soft)] bg-white px-4 py-3 text-sm text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-subtle)] focus:border-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-60"
                   />
                 </div>
 
@@ -76,7 +135,13 @@ function SignupPage() {
                     type="password"
                     autoComplete="new-password"
                     placeholder="Create a password"
-                    className="w-full rounded-[var(--radius-input)] border border-[var(--color-border-soft)] bg-white px-4 py-3 text-sm text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-subtle)] focus:border-[var(--color-primary)]"
+                    value={password}
+                    onChange={(event) =>
+                      setPassword(event.target.value)
+                    }
+                    required
+                    disabled={isSubmitting}
+                    className="w-full rounded-[var(--radius-input)] border border-[var(--color-border-soft)] bg-white px-4 py-3 text-sm text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-subtle)] focus:border-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-60"
                   />
                 </div>
 
@@ -94,15 +159,33 @@ function SignupPage() {
                     type="password"
                     autoComplete="new-password"
                     placeholder="Re-enter your password"
-                    className="w-full rounded-[var(--radius-input)] border border-[var(--color-border-soft)] bg-white px-4 py-3 text-sm text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-subtle)] focus:border-[var(--color-primary)]"
+                    value={confirmPassword}
+                    onChange={(event) =>
+                      setConfirmPassword(event.target.value)
+                    }
+                    required
+                    disabled={isSubmitting}
+                    className="w-full rounded-[var(--radius-input)] border border-[var(--color-border-soft)] bg-white px-4 py-3 text-sm text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-subtle)] focus:border-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-60"
                   />
                 </div>
 
+                {error && (
+                  <div
+                    role="alert"
+                    className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm leading-5 text-red-700"
+                  >
+                    {error}
+                  </div>
+                )}
+
                 <Button
                   type="submit"
+                  disabled={isSubmitting}
                   className="w-full rounded-lg py-3"
                 >
-                  Create account
+                  {isSubmitting
+                    ? 'Creating account...'
+                    : 'Create account'}
                 </Button>
               </form>
 
