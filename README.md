@@ -147,8 +147,8 @@ document-rag-chatbot/
 │   ├── app/            # ingestion, embeddings, vectorstore, retrieval, generation, rag, database, chat, auth
 │   ├── api/             # schemas, routes (auth, sources, chats, guest), main.py
 │   ├── tests/
-│   ├── data/
-│   └── chroma_db/
+│   └── data/
+│       └── chroma_db/
 ├── frontend/
 │   └── src/              # components, context, pages
 ├── screenshots/

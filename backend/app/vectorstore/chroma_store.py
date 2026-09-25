@@ -7,7 +7,7 @@ from langchain_core.embeddings import Embeddings
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
-CHROMA_DIRECTORY = PROJECT_ROOT / "backend" / "chroma_db"
+CHROMA_DIRECTORY = PROJECT_ROOT / "backend" / "data" / "chroma_db"
 COLLECTION_NAME = "rag_documents"
 
 
