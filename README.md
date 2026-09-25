@@ -31,11 +31,15 @@ Document RAG Chatbot is a Retrieval-Augmented Generation (RAG) application that 
 
 | Home | Document Chat |
 |---|---|
-| ![Home](screenshots/home.png) | ![Chat Interface](screenshots/chat.png) |
+| ![Home]<img width="1447" height="1078" alt="image" src="https://github.com/user-attachments/assets/d02141c0-0734-41b6-b647-ea9836801c06" />
+ | ![Chat Interface]<img width="1462" height="1078" alt="image" src="https://github.com/user-attachments/assets/6cf9dd88-6fd3-47bb-803b-00c1cf161d00" />
+ |
 
 | Conversation History | Source Library |
 |---|---|
-| ![Sources](screenshots/sources.png) | ![Source Library](screenshots/authentication.png) |
+| ![Chat]<img width="1461" height="1078" alt="image" src="https://github.com/user-attachments/assets/8e13d06d-8beb-4de7-9d88-cb9d1b66c02c" />
+ | ![Source]<img width="1326" height="1062" alt="image" src="https://github.com/user-attachments/assets/558bec48-82f9-422c-bf69-3c7b3433a7c4" />
+ |
 
 ---
 
