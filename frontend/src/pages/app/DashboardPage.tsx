@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import Container from '../../components/layout/Container'
+import { useAuth } from '../../context/AuthContext'
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
@@ -41,6 +42,11 @@ function getFileType(filename: string) {
 
 function DashboardPage() {
   const navigate = useNavigate()
+  const {
+    token,
+    isAuthenticated,
+    isLoading: authLoading,
+  } = useAuth()
 
   const [sources, setSources] = useState<Source[]>([])
   const [chats, setChats] = useState<Chat[]>([])
@@ -50,10 +56,34 @@ function DashboardPage() {
     let cancelled = false
 
     async function loadWorkspace() {
+      if (authLoading) {
+        return
+      }
+
+      if (!isAuthenticated || !token) {
+        if (!cancelled) {
+          setSources([])
+          setChats([])
+          setLoading(false)
+        }
+
+        return
+      }
+
+      setLoading(true)
+
       try {
+        const headers = {
+          Authorization: `Bearer ${token}`,
+        }
+
         const [sourcesResponse, chatsResponse] = await Promise.all([
-          fetch(`${API_BASE_URL}/sources`),
-          fetch(`${API_BASE_URL}/chats`),
+          fetch(`${API_BASE_URL}/sources`, {
+            headers,
+          }),
+          fetch(`${API_BASE_URL}/chats`, {
+            headers,
+          }),
         ])
 
         if (!sourcesResponse.ok || !chatsResponse.ok) {
@@ -84,7 +114,7 @@ function DashboardPage() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [authLoading, isAuthenticated, token])
 
   function openSources() {
     navigate('/sources')
