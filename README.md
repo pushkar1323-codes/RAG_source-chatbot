@@ -11,7 +11,7 @@
 [![RAG](https://img.shields.io/badge/Architecture-RAG-0B2545)](#architecture)
 [![Tests](https://img.shields.io/badge/Backend%20Tests-20%20passed-success)](#testing)
 
-**[Live Demo](YOUR_DEPLOYMENT_URL)** · **[API Docs](YOUR_API_DOCS_URL)**
+**[Live Demo](https://contextbridge-vert.vercel.app)** · **[API Docs](https://ragsource-chatbot-production.up.railway.app/docs)**
 
 </div>
 
