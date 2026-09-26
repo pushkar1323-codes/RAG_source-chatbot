@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from fastapi import HTTPException
+
 from app.generation.answer_generator import create_llm, generate_answer
 from app.generation.citations import build_citations
 from app.retrieval.relevance import check_relevance
@@ -31,6 +33,52 @@ class RAGService:
 
         self.llm = llm or create_llm()
         self.k = k
+
+    @staticmethod
+    def _handle_generation_error(exc: Exception) -> None:
+        """
+        Convert temporary Gemini provider failures into
+        appropriate HTTP responses.
+        """
+
+        error_text = str(exc).upper()
+        error_type = type(exc).__name__.upper()
+
+        is_rate_limit = (
+            "429" in error_text
+            or "RESOURCE_EXHAUSTED" in error_text
+            or "RATELIMIT" in error_type
+        )
+
+        if is_rate_limit:
+            raise HTTPException(
+                status_code=429,
+                detail=(
+                    "AI generation is temporarily unavailable because "
+                    "the Gemini API quota or rate limit has been exceeded. "
+                    "Please try again later."
+                ),
+            ) from exc
+
+        is_service_unavailable = (
+            "503" in error_text
+            or "UNAVAILABLE" in error_text
+            or "OVERLOADED" in error_text
+            or "HIGH DEMAND" in error_text
+            or "TEMPORARILY UNAVAILABLE" in error_text
+        )
+
+        if is_service_unavailable:
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "AI generation is temporarily unavailable because "
+                    "the Gemini service is experiencing high demand. "
+                    "Please try again shortly."
+                ),
+            ) from exc
+
+        raise exc
 
     def ask(
         self,
@@ -77,11 +125,14 @@ class RAGService:
             for document in documents
         )
 
-        answer = generate_answer(
-            llm=self.llm,
-            question=question,
-            context=context,
-        )
+        try:
+            answer = generate_answer(
+                llm=self.llm,
+                question=question,
+                context=context,
+            )
+        except Exception as exc:
+            self._handle_generation_error(exc)
 
         citations = build_citations(
             documents
