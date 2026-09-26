@@ -3,6 +3,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, File, Header, HTTPException, UploadFile
+from langchain_google_genai.chat_models import GoogleRateLimitError
 
 from app.api.schemas import (
     CitationResponse,
@@ -113,6 +114,7 @@ async def upload_guest_source(
     session_directory = (
         GUEST_UPLOAD_DIRECTORY / session_id
     )
+
     session_directory.mkdir(
         parents=True,
         exist_ok=True,
@@ -216,10 +218,20 @@ def ask_guest(
         embedding_model=embedding_model,
     )
 
-    response = rag_service.ask(
-        question=request.question,
-        source_ids=request.source_ids,
-    )
+    try:
+        response = rag_service.ask(
+            question=request.question,
+            source_ids=request.source_ids,
+        )
+    except GoogleRateLimitError as exc:
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                "AI generation is temporarily unavailable because "
+                "the Gemini API quota has been exceeded. "
+                "Please try again later."
+            ),
+        ) from exc
 
     return {
         "answer": response.answer,
