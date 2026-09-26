@@ -1,9 +1,9 @@
+import json
 import re
 from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, File, Header, HTTPException, UploadFile
-from langchain_google_genai.chat_models import GoogleRateLimitError
 
 from app.api.schemas import (
     CitationResponse,
@@ -34,7 +34,10 @@ SUPPORTED_FILE_TYPES = {
     ".txt": "txt",
 }
 
+MANIFEST_FILENAME = "manifest.json"
+
 _guest_sources: dict[str, dict[str, Source]] = {}
+_loaded_sessions: set[str] = set()
 
 
 def get_guest_session(
@@ -58,9 +61,132 @@ def get_guest_session(
     return session_id
 
 
+def get_session_directory(
+    session_id: str,
+) -> Path:
+    return GUEST_UPLOAD_DIRECTORY / session_id
+
+
+def get_manifest_path(
+    session_id: str,
+) -> Path:
+    return get_session_directory(session_id) / MANIFEST_FILENAME
+
+
+def source_to_dict(
+    source: Source,
+) -> dict:
+    return {
+        "source_id": source.source_id,
+        "filename": source.filename,
+        "type": source.type,
+        "path": source.path,
+        "url": source.url,
+        "metadata": source.metadata,
+        "status": source.status,
+    }
+
+
+def source_from_dict(
+    data: dict,
+) -> Source:
+    return Source(
+        source_id=data["source_id"],
+        filename=data["filename"],
+        type=data["type"],
+        path=data.get("path"),
+        url=data.get("url"),
+        metadata=data.get("metadata") or {},
+        status=data.get("status", "ready"),
+    )
+
+
+def save_session_sources(
+    session_id: str,
+) -> None:
+    session_directory = get_session_directory(
+        session_id
+    )
+
+    session_directory.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    manifest_path = get_manifest_path(
+        session_id
+    )
+
+    temporary_path = manifest_path.with_suffix(
+        ".tmp"
+    )
+
+    data = [
+        source_to_dict(source)
+        for source in _guest_sources
+        .get(session_id, {})
+        .values()
+    ]
+
+    temporary_path.write_text(
+        json.dumps(
+            data,
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    temporary_path.replace(manifest_path)
+
+
+def load_session_sources(
+    session_id: str,
+) -> dict[str, Source]:
+    manifest_path = get_manifest_path(
+        session_id
+    )
+
+    if not manifest_path.exists():
+        return {}
+
+    try:
+        data = json.loads(
+            manifest_path.read_text(
+                encoding="utf-8"
+            )
+        )
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+    sources: dict[str, Source] = {}
+
+    for item in data:
+        try:
+            source = source_from_dict(item)
+        except (KeyError, TypeError):
+            continue
+
+        if source.path:
+            source_path = Path(source.path)
+
+            if not source_path.exists():
+                continue
+
+        sources[source.source_id] = source
+
+    return sources
+
+
 def get_session_sources(
     session_id: str,
 ) -> dict[str, Source]:
+    if session_id not in _loaded_sessions:
+        _guest_sources[session_id] = (
+            load_session_sources(session_id)
+        )
+        _loaded_sessions.add(session_id)
+
     return _guest_sources.setdefault(
         session_id,
         {},
@@ -111,8 +237,8 @@ async def upload_guest_source(
             detail=f"Unsupported file type: {extension}",
         )
 
-    session_directory = (
-        GUEST_UPLOAD_DIRECTORY / session_id
+    session_directory = get_session_directory(
+        session_id
     )
 
     session_directory.mkdir(
@@ -159,15 +285,21 @@ async def upload_guest_source(
             chunks,
         )
 
+        session_sources = get_session_sources(
+            session_id
+        )
+
+        session_sources[source_id] = source
+
+        save_session_sources(
+            session_id
+        )
+
     except Exception:
         if stored_path.exists():
             stored_path.unlink()
 
         raise
-
-    get_session_sources(session_id)[
-        source_id
-    ] = source
 
     return source
 
@@ -218,20 +350,10 @@ def ask_guest(
         embedding_model=embedding_model,
     )
 
-    try:
-        response = rag_service.ask(
-            question=request.question,
-            source_ids=request.source_ids,
-        )
-    except GoogleRateLimitError as exc:
-        raise HTTPException(
-            status_code=429,
-            detail=(
-                "AI generation is temporarily unavailable because "
-                "the Gemini API quota has been exceeded. "
-                "Please try again later."
-            ),
-        ) from exc
+    response = rag_service.ask(
+        question=request.question,
+        source_ids=request.source_ids,
+    )
 
     return {
         "answer": response.answer,
